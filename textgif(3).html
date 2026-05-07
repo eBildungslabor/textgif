@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>textgif.de — text eingeben, gif kommt raus</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Bricolage+Grotesque:opsz,wght@12..96,300;12..96,400;12..96,500;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
+<style>
+:root {
+  --bg: #fafaf7;
+  --panel: #ffffff;
+  --ink: #0a0a0a;
+  --soft: #888;
+  --line: #e6e3da;
+  --accent: #f04020;
+  --sans: 'Bricolage Grotesque', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, monospace;
+  --display: 'Archivo Black', sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-feature-settings: "ss01", "ss02";
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+body { padding: 22px 16px 50px; overscroll-behavior-y: none; }
+main { max-width: 540px; margin: 0 auto; }
+
+header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 28px;
+  padding-bottom: 14px;
+  border-bottom: 1.5px solid var(--ink);
+}
+
+h1 {
+  font-family: var(--sans);
+  font-size: clamp(2.4rem, 10vw, 3.4rem);
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 0.9;
+}
+h1 .accent { color: var(--accent); }
+
+.tag {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--soft);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+section { margin-bottom: 26px; }
+
+.section-label {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--soft);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.section-label .num { color: var(--ink); font-weight: 500; }
+
+#word-input {
+  width: 100%;
+  padding: 16px 18px;
+  font-family: var(--display);
+  font-size: clamp(1.2rem, 5vw, 1.8rem);
+  background: var(--panel);
+  border: 1.5px solid var(--ink);
+  color: var(--ink);
+  text-align: center;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  -webkit-appearance: none;
+  border-radius: 0;
+  resize: none;
+  line-height: 1.15;
+  min-height: 64px;
+}
+#word-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+#word-input::placeholder { color: var(--line); }
+
+.hint {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--soft);
+  margin-top: 6px;
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+
+.bg-picker {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.swatch {
+  width: 36px;
+  height: 36px;
+  border: 1.5px solid var(--ink);
+  cursor: pointer;
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+  padding: 0;
+  transition: transform 0.1s;
+}
+.swatch:hover { transform: translateY(-2px); }
+.swatch.active::after {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border: 1.5px solid var(--ink);
+  pointer-events: none;
+}
+
+.swatch-custom {
+  background: conic-gradient(from 0deg, #ff0080, #ff8000, #ffff00, #00ff80, #00ffff, #0080ff, #8000ff, #ff0080);
+  display: block;
+  overflow: hidden;
+}
+.swatch-custom .plus {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+  font-size: 18px;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+  pointer-events: none;
+}
+.swatch-custom input {
+  opacity: 0;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  border: 0;
+}
+
+.go {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 18px;
+  background: var(--ink);
+  color: var(--bg);
+  border: none;
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 1.2rem;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.12s, transform 0.08s;
+}
+.go:hover:not(:disabled) { background: var(--accent); }
+.go:active:not(:disabled) { transform: scale(0.99); }
+.go:disabled {
+  background: transparent;
+  color: var(--soft);
+  border: 1.5px solid var(--line);
+  cursor: not-allowed;
+}
+.go .arrow { display: inline-block; margin-left: 6px; transition: transform 0.2s; }
+.go:hover:not(:disabled) .arrow { transform: translateX(5px); }
+
+footer {
+  margin-top: 40px;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  color: var(--soft);
+  letter-spacing: 0.05em;
+  text-align: center;
+  line-height: 1.6;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10,10,10,0.94);
+  z-index: 100;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.overlay.active { display: flex; }
+
+.result {
+  background: var(--bg);
+  padding: 22px;
+  max-width: 520px;
+  width: 100%;
+  border: 1.5px solid var(--ink);
+}
+
+.result-label {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--soft);
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+.result-label .meta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60%; }
+
+#result-img {
+  width: 100%;
+  display: block;
+  border: 1px solid var(--line);
+  background: white;
+}
+
+.result-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+.result-actions .btn {
+  flex: 1;
+  padding: 11px 8px;
+  font-size: 0.9rem;
+  min-width: 90px;
+  font-family: var(--sans);
+  font-weight: 500;
+  background: var(--panel);
+  border: 1.5px solid var(--ink);
+  color: var(--ink);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.08s;
+}
+.result-actions .btn:hover { background: var(--ink); color: var(--bg); }
+.result-actions .btn-primary { background: var(--accent); color: white; border-color: var(--accent); }
+.result-actions .btn-primary:hover { background: var(--ink); border-color: var(--ink); color: white; }
+
+.progress-wrap {
+  background: var(--bg);
+  padding: 30px 24px;
+  max-width: 380px;
+  width: 100%;
+  border: 1.5px solid var(--ink);
+}
+.progress-label {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+}
+.progress-bar {
+  height: 6px;
+  background: var(--line);
+  position: relative;
+  overflow: hidden;
+}
+.progress-bar-fill {
+  position: absolute;
+  inset: 0 100% 0 0;
+  background: var(--accent);
+  transition: right 0.15s linear;
+}
+
+.flash {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--ink);
+  color: var(--bg);
+  padding: 9px 16px;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  z-index: 200;
+  letter-spacing: 0.03em;
+  animation: flash-in 0.2s ease-out;
+}
+@keyframes flash-in {
+  from { opacity: 0; transform: translate(-50%, 6px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+@media (max-width: 480px) {
+  body { padding: 18px 12px 32px; }
+  header { margin-bottom: 22px; }
+  .swatch { width: 32px; height: 32px; }
+}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>text<span class="accent">gif</span></h1>
+    <span class="tag">.de</span>
+  </header>
+
+  <section>
+    <div class="section-label"><span class="num">01</span> text</div>
+    <textarea id="word-input" maxlength="80" rows="2" placeholder="HALLO" autocomplete="off" autocorrect="off" spellcheck="false">HALLO</textarea>
+    <div class="hint">→ falsch, falsch, RICHTIG ✨ konfetti</div>
+  </section>
+
+  <section>
+    <div class="section-label"><span class="num">02</span> hintergrund</div>
+    <div class="bg-picker" id="bg-picker">
+      <button class="swatch active" data-color="#ffffff" style="background:#ffffff" aria-label="weiß"></button>
+      <button class="swatch" data-color="#0a0a0a" style="background:#0a0a0a" aria-label="schwarz"></button>
+      <button class="swatch" data-color="#f04020" style="background:#f04020" aria-label="rot"></button>
+      <button class="swatch" data-color="#ffd84a" style="background:#ffd84a" aria-label="gelb"></button>
+      <button class="swatch" data-color="#3848ff" style="background:#3848ff" aria-label="blau"></button>
+      <button class="swatch" data-color="#c7ed3a" style="background:#c7ed3a" aria-label="grün"></button>
+      <button class="swatch" data-color="#ff8ec0" style="background:#ff8ec0" aria-label="rosa"></button>
+      <button class="swatch" data-color="#1f5e3f" style="background:#1f5e3f" aria-label="dunkelgrün"></button>
+      <label class="swatch swatch-custom" aria-label="freie farbe">
+        <span class="plus">+</span>
+        <input type="color" id="custom-color" value="#ffaa00">
+      </label>
+    </div>
+  </section>
+
+  <button class="go" id="go">
+    GIF erstellen<span class="arrow">→</span>
+  </button>
+
+  <footer>
+    <div>textgif.de — falsch, falsch, RICHTIG!</div>
+  </footer>
+</main>
+
+<div class="overlay" id="progress-overlay">
+  <div class="progress-wrap">
+    <div class="progress-label">
+      <span id="progress-text">vorbereitung</span>
+      <span id="progress-pct">0%</span>
+    </div>
+    <div class="progress-bar"><div class="progress-bar-fill" id="progress-fill"></div></div>
+  </div>
+</div>
+
+<div class="overlay" id="result-overlay">
+  <div class="result">
+    <div class="result-label">
+      <span>— fertig —</span>
+      <span class="meta" id="result-size"></span>
+    </div>
+    <img id="result-img" alt="">
+    <div class="result-actions">
+      <button class="btn" id="result-close">schließen</button>
+      <button class="btn" id="result-reroll">🎲 nochmal</button>
+      <button class="btn btn-primary" id="result-download">⬇ speichern</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============ Helpers ============
+function rand(a, b) { return Math.random() * (b - a) + a; }
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function ease(t) {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+function lerpPos(p1, p2, t) {
+  return {
+    x: lerp(p1.x, p2.x, t),
+    y: lerp(p1.y, p2.y, t),
+    rot: lerp(p1.rot, p2.rot, t)
+  };
+}
+
+function isDarkBg(hex) {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.substr(0,2), 16);
+  const g = parseInt(h.substr(2,2), 16);
+  const b = parseInt(h.substr(4,2), 16);
+  return (0.299*r + 0.587*g + 0.114*b) / 255 < 0.55;
+}
+
+function flash(msg) {
+  const el = document.createElement('div');
+  el.className = 'flash';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1700);
+}
+
+// ============ Background picker ============
+let bgColor = '#ffffff';
+
+function setBg(color, fromCustom = false) {
+  bgColor = color;
+  document.querySelectorAll('.swatch').forEach(s => {
+    if (!fromCustom && s.dataset.color === color) s.classList.add('active');
+    else s.classList.remove('active');
+  });
+  if (fromCustom) document.querySelector('.swatch-custom').classList.add('active');
+}
+
+document.querySelectorAll('.swatch[data-color]').forEach(s => {
+  s.addEventListener('click', () => setBg(s.dataset.color, false));
+});
+document.getElementById('custom-color').addEventListener('input', e => {
+  setBg(e.target.value, true);
+});
+
+// ============ Word input ============
+const wordInput = document.getElementById('word-input');
+const goBtn = document.getElementById('go');
+
+function getWord() {
+  return wordInput.value.replace(/\s+/g, ' ').trim().toUpperCase();
+}
+
+function updateGoBtn() {
+  goBtn.disabled = getWord().length === 0;
+}
+
+wordInput.addEventListener('input', updateGoBtn);
+updateGoBtn();
+
+wordInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey && !goBtn.disabled) {
+    e.preventDefault();
+    generateGif();
+  }
+});
+
+// ============ GIF worker ============
+let workerBlobUrl = null;
+async function ensureWorker() {
+  if (workerBlobUrl) return workerBlobUrl;
+  const resp = await fetch('https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js');
+  if (!resp.ok) throw new Error('worker konnte nicht geladen werden');
+  const text = await resp.text();
+  const blob = new Blob([text], { type: 'application/javascript' });
+  workerBlobUrl = URL.createObjectURL(blob);
+  return workerBlobUrl;
+}
+
+function setProgress(pct, text) {
+  document.getElementById('progress-fill').style.right = (100 - pct) + '%';
+  document.getElementById('progress-pct').textContent = Math.round(pct) + '%';
+  if (text) document.getElementById('progress-text').textContent = text;
+}
+
+// ============ Multi-line text layout ============
+// Wrap text into lines that fit in maxWidth at the given font size, using natural letter widths.
+function wrapAtFontSize(text, ctx, maxWidth, fontSize) {
+  ctx.font = `${fontSize}px "Archivo Black", sans-serif`;
+  const words = text.split(/\s+/).filter(w => w.length > 0);
+  const pieces = [];
+  for (const word of words) {
+    if (ctx.measureText(word).width <= maxWidth) {
+      pieces.push(word);
+    } else {
+      let chunk = '';
+      for (const ch of word) {
+        if (chunk && ctx.measureText(chunk + ch).width > maxWidth) {
+          pieces.push(chunk);
+          chunk = ch;
+        } else {
+          chunk += ch;
+        }
+      }
+      if (chunk) pieces.push(chunk);
+    }
+  }
+  const lines = [];
+  let current = '';
+  for (const piece of pieces) {
+    const test = current ? current + ' ' + piece : piece;
+    if (current && ctx.measureText(test).width > maxWidth) {
+      lines.push(current);
+      current = piece;
+    } else {
+      current = test;
+    }
+  }
+  if (current) lines.push(current);
+  return lines;
+}
+
+function chooseLayout(text, ctx, canvasSize) {
+  const maxWidth = canvasSize * 0.86;
+  const maxHeight = canvasSize * 0.55;
+  const lineHeightRatio = 1.05;
+
+  for (let fs = 130; fs >= 36; fs -= 3) {
+    const lines = wrapAtFontSize(text, ctx, maxWidth, fs);
+    const totalHeight = lines.length * fs * lineHeightRatio;
+    if (totalHeight <= maxHeight) {
+      ctx.font = `${fs}px "Archivo Black", sans-serif`;
+      const widest = Math.max(...lines.map(l => ctx.measureText(l).width));
+      if (widest <= maxWidth) {
+        return { lines, fontSize: fs, lineHeight: fs * lineHeightRatio };
+      }
+    }
+  }
+  const fs = 34;
+  const lines = wrapAtFontSize(text, ctx, maxWidth, fs);
+  return { lines, fontSize: fs, lineHeight: fs * lineHeightRatio };
+}
+
+// ============ Permutations (line-local) ============
+function makeWrongPerm(letters, exclude = []) {
+  const N = letters.length;
+  if (N <= 1) {
+    return { perm: [0], displayed: letters.join('') };
+  }
+  const indices = letters.map((_, i) => i);
+  const original = letters.join('');
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const perm = shuffle(indices);
+    const inv = new Array(N);
+    perm.forEach((slot, i) => { inv[slot] = i; });
+    const displayed = inv.map(i => letters[i]).join('');
+    if (displayed === original) continue;
+    if (exclude.includes(displayed)) continue;
+    return { perm, displayed };
+  }
+  // Fallback rotation by 1
+  const perm = indices.map(i => (i + 1) % N);
+  const inv = new Array(N);
+  perm.forEach((slot, i) => { inv[slot] = i; });
+  return { perm, displayed: inv.map(i => letters[i]).join('') };
+}
+
+// ============ Confetti (with landing) ============
+function makeConfetti(SIZE, bgColor, spawnFromFrame, spawnSpread) {
+  const dark = isDarkBg(bgColor);
+  const palette = dark
+    ? ['#ff3a14', '#ffd84a', '#c7ed3a', '#ff8ec0', '#ffffff', '#3848ff']
+    : ['#ff3a14', '#ffd84a', '#c7ed3a', '#ff8ec0', '#3848ff', '#1f5e3f'];
+
+  const NUM = 65;
+  const GRAVITY = 0.18;
+  const particles = [];
+  for (let i = 0; i < NUM; i++) {
+    const vy = rand(5.5, 9);
+    const y0 = -25 - rand(0, 60);
+    // restY: settle in the bottom strip; layered so they don't all stack at one line
+    const restY = SIZE - rand(8, 90);
+    // Solve 0.5 * g * t^2 + vy * t + (y0 - restY) = 0  →  t = (-vy + sqrt(vy^2 - 2*g*(y0-restY)))/g
+    const disc = vy * vy - 2 * GRAVITY * (y0 - restY);
+    const tLand = (-vy + Math.sqrt(disc)) / GRAVITY;
+    const vx = rand(-0.8, 0.8);
+    const ax = rand(-0.005, 0.005);
+    const rot0 = rand(0, Math.PI * 2);
+    const vrot = rand(-0.18, 0.18);
+    // Position and rotation at landing
+    const xLand = rand(SIZE * 0.04, SIZE * 0.96) + vx * 0; // x0 placeholder, set below using x0
+    const x0 = rand(SIZE * 0.04, SIZE * 0.96);
+    const xAtLand = x0 + vx * tLand + 0.5 * ax * tLand * tLand;
+    const rotAtLand = rot0 + vrot * tLand;
+    particles.push({
+      spawnFrame: spawnFromFrame + Math.floor(rand(0, spawnSpread)),
+      x0, y0, vx, vy, ax, gravity: GRAVITY,
+      rot0, vrot,
+      tLand, xAtLand, restY, rotAtLand,
+      color: palette[Math.floor(rand(0, palette.length))],
+      size: rand(7, 14),
+      shape: pick(['rect', 'rect', 'rect', 'circle'])
+    });
+  }
+  return particles;
+}
+
+function drawConfetti(fc, particles, frame, alpha, SIZE) {
+  for (const p of particles) {
+    if (frame < p.spawnFrame) continue;
+    const t = frame - p.spawnFrame;
+
+    let x, y, rot;
+    if (t >= p.tLand) {
+      // Settled
+      x = p.xAtLand;
+      y = p.restY;
+      rot = p.rotAtLand;
+    } else {
+      x = p.x0 + p.vx * t + 0.5 * p.ax * t * t;
+      y = p.y0 + p.vy * t + 0.5 * p.gravity * t * t;
+      rot = p.rot0 + p.vrot * t;
+    }
+    if (x < -30 || x > SIZE + 30) continue;
+
+    fc.save();
+    fc.globalAlpha = alpha;
+    fc.fillStyle = p.color;
+    fc.translate(x, y);
+    fc.rotate(rot);
+    if (p.shape === 'rect') {
+      fc.fillRect(-p.size / 2, -p.size / 3, p.size, p.size * 0.6);
+    } else {
+      fc.beginPath();
+      fc.arc(0, 0, p.size / 2.4, 0, Math.PI * 2);
+      fc.fill();
+    }
+    fc.restore();
+  }
+}
+
+// ============ GIF generation ============
+async function generateGif() {
+  const word = getWord();
+  if (word.length === 0) return;
+
+  const overlay = document.getElementById('progress-overlay');
+  overlay.classList.add('active');
+  setProgress(0, 'worker laden');
+
+  try {
+    const workerScript = await ensureWorker();
+    setProgress(5, 'fonts laden');
+    await document.fonts.ready;
+
+    const SIZE = 480;
+    const FPS = 12;
+    const TOTAL_FRAMES = 120; // 10 seconds
+    const FRAME_DELAY = 1000 / FPS;
+
+    const inkColor = isDarkBg(bgColor) ? '#ffffff' : '#0a0a0a';
+
+    // ===== Layout =====
+    const probeCanvas = document.createElement('canvas');
+    probeCanvas.width = SIZE; probeCanvas.height = SIZE;
+    const probe = probeCanvas.getContext('2d');
+    const layout = chooseLayout(word, probe, SIZE);
+    probe.font = `${layout.fontSize}px "Archivo Black", sans-serif`;
+
+    const blockHeight = layout.lines.length * layout.lineHeight;
+    // Position the text block higher than center so confetti has room to fall below
+    const blockTopCenterY = (SIZE - blockHeight) * 0.42 + layout.lineHeight / 2;
+
+    // Build chars with natural per-letter widths (each centered in its own width)
+    const chars = [];
+    const lineRanges = []; // {start, count, lineY} per line, for line-local computation
+    layout.lines.forEach((line, lineIdx) => {
+      const lineWidth = probe.measureText(line).width;
+      let cursorX = (SIZE - lineWidth) / 2;
+      const lineY = blockTopCenterY + lineIdx * layout.lineHeight;
+      const lineStart = chars.length;
+      for (const ch of line) {
+        const w = probe.measureText(ch).width;
+        chars.push({ ch, x: cursorX + w / 2, y: lineY, lineIdx, posInLine: chars.length - lineStart });
+        cursorX += w;
+      }
+      lineRanges.push({ start: lineStart, count: line.length, lineY });
+    });
+
+    const N = chars.length;
+    const letters = chars.map(c => c.ch);
+    const correctPos = chars.map(c => ({ x: c.x, y: c.y, rot: 0 }));
+
+    // For a given line and a permutation, return positions for each original line letter.
+    // Each arrangement is centered using its own letter widths, so spacing is always natural
+    // and there are no overlaps within any arrangement.
+    function lineArrangementPositions(lineLetters, perm, lineY) {
+      const M = lineLetters.length;
+      // inv[j] = which original letter index lands at slot j
+      const inv = new Array(M);
+      perm.forEach((slot, i) => { inv[slot] = i; });
+      // Each slot's width is the width of the letter occupying it in this arrangement
+      const slotWidths = inv.map(i => probe.measureText(lineLetters[i]).width);
+      const totalWidth = slotWidths.reduce((a, b) => a + b, 0);
+      const slotCenters = [];
+      let cursorX = (SIZE - totalWidth) / 2;
+      for (let j = 0; j < M; j++) {
+        slotCenters.push(cursorX + slotWidths[j] / 2);
+        cursorX += slotWidths[j];
+      }
+      // Letter i (original) ends up at slot perm[i]
+      const positions = new Array(M);
+      for (let i = 0; i < M; i++) {
+        positions[i] = { x: slotCenters[perm[i]], y: lineY, rot: 0 };
+      }
+      return positions;
+    }
+
+    // ===== Wrong arrangements (line-local, each independently centered) =====
+    let wrong1Pos, wrong2Pos;
+    if (N === 1) {
+      wrong1Pos = [{ x: correctPos[0].x, y: correctPos[0].y, rot: Math.PI }];
+      wrong2Pos = [{ x: correctPos[0].x, y: correctPos[0].y, rot: -Math.PI / 2 }];
+    } else {
+      wrong1Pos = new Array(N);
+      wrong2Pos = new Array(N);
+      lineRanges.forEach((range) => {
+        const lineLetters = letters.slice(range.start, range.start + range.count);
+        if (lineLetters.length <= 1) {
+          // Single-character line: nothing to shuffle, stay at correct position
+          const gIdx = range.start;
+          wrong1Pos[gIdx] = { ...correctPos[gIdx] };
+          wrong2Pos[gIdx] = { ...correctPos[gIdx] };
+          return;
+        }
+        const r1 = makeWrongPerm(lineLetters);
+        const r2 = makeWrongPerm(lineLetters, [r1.displayed]);
+        const w1 = lineArrangementPositions(lineLetters, r1.perm, range.lineY);
+        const w2 = lineArrangementPositions(lineLetters, r2.perm, range.lineY);
+        for (let j = 0; j < range.count; j++) {
+          wrong1Pos[range.start + j] = w1[j];
+          wrong2Pos[range.start + j] = w2[j];
+        }
+      });
+    }
+
+    // ===== Phase boundaries (frames) =====
+    // Loop point: alpha 0 at start AND end of fade-out → bg only on both ends.
+    const T1 = 4;    // fade-in done (alpha 1, at wrong-1)
+    const T2 = 14;   // end hold wrong-1
+    const T3 = 20;   // end shake-1
+    const T4 = 27;   // end drift to wrong-2
+    const T5 = 37;   // end hold wrong-2
+    const T6 = 43;   // end shake-2
+    const T7 = 51;   // end drift to correct (correct word visible, confetti starts)
+    const T8 = 105;  // confetti has settled (54 frames of celebration + falling)
+    const T9 = 113;  // end of "settled hold" (start fade-out)
+    // TOTAL_FRAMES = 120; fade-out runs T9..119
+
+    function basePosAtFrame(i, f) {
+      if (f <= T1) return wrong1Pos[i]; // already in formation, just fading in
+      if (f <= T3) return wrong1Pos[i]; // hold + shake at wrong-1
+      if (f <= T4) {
+        const t = ease((f - T3) / (T4 - T3));
+        return lerpPos(wrong1Pos[i], wrong2Pos[i], t);
+      }
+      if (f <= T6) return wrong2Pos[i]; // hold + shake at wrong-2
+      if (f <= T7) {
+        const t = ease((f - T6) / (T7 - T6));
+        return lerpPos(wrong2Pos[i], correctPos[i], t);
+      }
+      return correctPos[i];
+    }
+
+    function effectAtFrame(i, f, fontSize) {
+      const shakeAmp = fontSize * 0.13;
+      const danceAmp = fontSize * 0.16;
+      // Shake 1
+      if (f > T1 && f <= T3) {
+        if (f <= T2) return { dx: 0, dy: 0, dr: 0 };
+        const localF = f - T2;
+        const total = T3 - T2;
+        const fadeOut = localF > total - 2 ? Math.max(0, (total - localF) / 2) : 1;
+        const dx = Math.sin(localF * Math.PI * 0.78) * shakeAmp * fadeOut;
+        return { dx, dy: 0, dr: dx * 0.005 };
+      }
+      // Shake 2
+      if (f > T4 && f <= T6) {
+        if (f <= T5) return { dx: 0, dy: 0, dr: 0 };
+        const localF = f - T5;
+        const total = T6 - T5;
+        const fadeOut = localF > total - 2 ? Math.max(0, (total - localF) / 2) : 1;
+        const dx = Math.sin(localF * Math.PI * 0.78) * shakeAmp * fadeOut;
+        return { dx, dy: 0, dr: dx * 0.005 };
+      }
+      // Dance during correct hold (T7..T9)
+      if (f > T7 && f <= T9) {
+        const t = f - T7;
+        const total = T9 - T7;
+        const progress = t / total;
+        let amp;
+        if (progress < 0.06) amp = progress / 0.06;
+        else if (progress > 0.92) amp = (1 - progress) / 0.08;
+        else amp = 1;
+        const phase = i * 1.6;
+        const bounce = Math.sin((t + phase) * 0.45);
+        const dy = -Math.max(0, bounce) * danceAmp * amp;
+        const dr = Math.sin((t + phase * 0.7) * 0.38) * 0.13 * amp;
+        return { dx: 0, dy, dr };
+      }
+      return { dx: 0, dy: 0, dr: 0 };
+    }
+
+    function alphaAtFrame(f) {
+      if (f <= T1) return f / T1;
+      if (f >= T9) return Math.max(0, (TOTAL_FRAMES - 1 - f) / (TOTAL_FRAMES - 1 - T9));
+      return 1;
+    }
+
+    // Confetti spawns starting at correct word arrival; spread over 10 frames so they cascade
+    const confetti = makeConfetti(SIZE, bgColor, T7, 10);
+
+    setProgress(15, 'frames rendern');
+
+    const gif = new GIF({
+      workers: 2,
+      quality: 10,
+      width: SIZE,
+      height: SIZE,
+      workerScript,
+      repeat: 0,
+      background: bgColor
+    });
+
+    const frameCanvas = document.createElement('canvas');
+    frameCanvas.width = SIZE;
+    frameCanvas.height = SIZE;
+    const fc = frameCanvas.getContext('2d');
+    fc.font = `${layout.fontSize}px "Archivo Black", sans-serif`;
+    fc.textAlign = 'center';
+    fc.textBaseline = 'middle';
+
+    for (let f = 0; f < TOTAL_FRAMES; f++) {
+      // Background
+      fc.fillStyle = bgColor;
+      fc.fillRect(0, 0, SIZE, SIZE);
+
+      const alpha = alphaAtFrame(f);
+
+      // Letters
+      if (alpha > 0.005) {
+        fc.fillStyle = inkColor;
+        fc.globalAlpha = alpha;
+        for (let i = 0; i < N; i++) {
+          if (letters[i] === ' ') continue;
+          const base = basePosAtFrame(i, f);
+          const eff = effectAtFrame(i, f, layout.fontSize);
+          fc.save();
+          fc.translate(base.x + eff.dx, base.y + eff.dy);
+          fc.rotate(base.rot + eff.dr);
+          fc.fillText(letters[i], 0, 0);
+          fc.restore();
+        }
+        fc.globalAlpha = 1;
+      }
+
+      // Confetti from T7 onward; fades with overall alpha during fade-out
+      if (f >= T7 && alpha > 0.005) {
+        drawConfetti(fc, confetti, f, alpha, SIZE);
+      }
+
+      gif.addFrame(frameCanvas, { delay: FRAME_DELAY, copy: true });
+
+      const renderProg = 15 + ((f + 1) / TOTAL_FRAMES) * 35;
+      setProgress(renderProg);
+      if (f % 8 === 0) await new Promise(r => setTimeout(r, 0));
+    }
+
+    setProgress(50, 'gif kodieren');
+    gif.on('progress', p => setProgress(50 + p * 50));
+
+    gif.on('finished', blob => {
+      overlay.classList.remove('active');
+      const url = URL.createObjectURL(blob);
+      const img = document.getElementById('result-img');
+      if (img.dataset.blobUrl) URL.revokeObjectURL(img.dataset.blobUrl);
+      img.src = url;
+      img.dataset.blobUrl = url;
+      img.dataset.word = word;
+      const label = word.length > 18 ? word.substr(0, 16) + '…' : word;
+      document.getElementById('result-size').textContent = (blob.size / 1024).toFixed(0) + ' KB · ' + label;
+      document.getElementById('result-overlay').classList.add('active');
+    });
+
+    gif.render();
+  } catch (err) {
+    console.error(err);
+    overlay.classList.remove('active');
+    flash('hat nicht geklappt: ' + (err.message || 'unbekannt'));
+  }
+}
+
+document.getElementById('go').addEventListener('click', () => generateGif());
+
+document.getElementById('result-close').addEventListener('click', () => {
+  document.getElementById('result-overlay').classList.remove('active');
+});
+
+document.getElementById('result-reroll').addEventListener('click', () => {
+  document.getElementById('result-overlay').classList.remove('active');
+  generateGif();
+});
+
+document.getElementById('result-download').addEventListener('click', () => {
+  const img = document.getElementById('result-img');
+  const url = img.dataset.blobUrl;
+  if (!url) return;
+  const word = (img.dataset.word || 'textgif').toLowerCase().replace(/[^a-z0-9]/gi, '_').substr(0, 20) || 'textgif';
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `textgif-${word}-${Date.now()}.gif`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+});
+</script>
+</body>
+</html>
