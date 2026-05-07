@@ -487,13 +487,16 @@ function setProgress(pct, text) {
 }
 
 // ============ Multi-line text layout ============
-// Wrap text into lines that fit in maxWidth at the given font size, using natural letter widths.
-function wrapAtFontSize(text, ctx, maxWidth, fontSize) {
+// Wrap text into lines that fit in maxWidth at the given font size.
+// By default, words are kept whole — if a word doesn't fit, the caller (chooseLayout)
+// is expected to try a smaller font size. Set splitWords=true as a fallback for
+// extremely long single words that won't fit at any size.
+function wrapAtFontSize(text, ctx, maxWidth, fontSize, splitWords) {
   ctx.font = `${fontSize}px "Archivo Black", sans-serif`;
   const words = text.split(/\s+/).filter(w => w.length > 0);
   const pieces = [];
   for (const word of words) {
-    if (ctx.measureText(word).width <= maxWidth) {
+    if (!splitWords || ctx.measureText(word).width <= maxWidth) {
       pieces.push(word);
     } else {
       let chunk = '';
@@ -528,8 +531,10 @@ function chooseLayout(text, ctx, canvasSize) {
   const maxHeight = canvasSize * 0.55;
   const lineHeightRatio = 1.05;
 
+  // Primary pass: keep words whole. If a word doesn't fit at this fs, the line
+  // exceeds maxWidth and we move to a smaller fs.
   for (let fs = 130; fs >= 36; fs -= 3) {
-    const lines = wrapAtFontSize(text, ctx, maxWidth, fs);
+    const lines = wrapAtFontSize(text, ctx, maxWidth, fs, false);
     const totalHeight = lines.length * fs * lineHeightRatio;
     if (totalHeight <= maxHeight) {
       ctx.font = `${fs}px "Archivo Black", sans-serif`;
@@ -539,8 +544,10 @@ function chooseLayout(text, ctx, canvasSize) {
       }
     }
   }
+
+  // Fallback: extremely long single word — allow character splitting at min fs.
   const fs = 34;
-  const lines = wrapAtFontSize(text, ctx, maxWidth, fs);
+  const lines = wrapAtFontSize(text, ctx, maxWidth, fs, true);
   return { lines, fontSize: fs, lineHeight: fs * lineHeightRatio };
 }
 
